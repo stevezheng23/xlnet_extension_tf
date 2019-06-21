@@ -1,0 +1,3 @@
+[submodule "xlnet"]
+	path = xlnet
+	url = https://github.com/zihangdai/xlnet.git
