@@ -1,1 +1,2 @@
-# xlnet_extension_tf
+# XLNet Extension
+XLNet Extension in TensorFlow
