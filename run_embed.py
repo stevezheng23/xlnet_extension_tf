@@ -40,6 +40,7 @@ flags.DEFINE_integer("train_steps", 1, "Number of training steps")
 flags.DEFINE_integer("warmup_steps", 0, "number of warmup steps")
 flags.DEFINE_float("learning_rate", 1e-5, "initial learning rate")
 flags.DEFINE_float("min_lr_ratio", 0.0, "min lr ratio for cos decay.")
+flags.DEFINE_float("lr_layer_decay_rate", 1.0, "Top layer: lr[L] = FLAGS.learning_rate. Low layer: lr[l-1] = lr[l] * lr_layer_decay_rate.")
 flags.DEFINE_float("clip", 1.0, "Gradient clipping")
 flags.DEFINE_float("weight_decay", 0.0, "Weight decay rate")
 flags.DEFINE_float("adam_epsilon", 1e-8, "Adam epsilon")
@@ -273,7 +274,7 @@ class XLNetExampleConverter(object):
         if logging:
             tf.logging.info("*** Example ***")
             tf.logging.info("guid: %s" % (example.guid))
-            tf.logging.info("tokens: %s" % " ".join([printable_text(token) for token in tokens]))
+            tf.logging.info("tokens: %s" % " ".join([prepro_utils.printable_text(token) for token in tokens]))
             tf.logging.info("input_ids: %s" % " ".join([str(x) for x in input_ids]))
             tf.logging.info("input_mask: %s" % " ".join([str(x) for x in input_mask]))
             tf.logging.info("segment_ids: %s" % " ".join([str(x) for x in segment_ids]))
@@ -330,8 +331,8 @@ class XLNetInputBuilder(object):
     """Default input builder for XLNet"""
     @staticmethod
     def get_input_builder(features,
-                          is_training,
                           seq_length,
+                          is_training,
                           drop_remainder):
         """Creates an `input_fn` closure to be passed to TPUEstimator."""
         all_input_ids = []
@@ -375,8 +376,8 @@ class XLNetInputBuilder(object):
     
     @staticmethod
     def get_file_based_input_fn(input_file,
-                                is_training,
                                 seq_length,
+                                is_training,
                                 drop_remainder):
         """Creates an `input_fn` closure to be passed to TPUEstimator."""
         name_to_features = {
@@ -551,8 +552,8 @@ def main(_):
     
     features = example_converter.convert_examples_to_features([PaddingInputExample()])
     
-    train_input_fn = XLNetInputBuilder.get_input_builder(features, True, FLAGS.max_seq_length, False)
-    estimator.train(train_input_fn, max_steps=1)
+    input_fn = XLNetInputBuilder.get_input_builder(features, FLAGS.max_seq_length, True, False)
+    estimator.train(input_fn, max_steps=1)
     
     tf.gfile.MakeDirs(FLAGS.export_dir)
     serving_input_fn = XLNetInputBuilder.get_serving_input_fn(FLAGS.max_seq_length)
