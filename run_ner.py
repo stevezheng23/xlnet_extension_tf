@@ -560,11 +560,11 @@ class XLNetModelBuilder(object):
         model = xlnet.XLNetModel(
             xlnet_config=model_config,
             run_config=run_config,
-            input_ids=input_ids,
-            input_mask=input_masks,
-            seg_ids=segment_ids)
+            input_ids=tf.transpose(input_ids, perm=[1,0]),
+            input_mask=tf.transpose(input_masks, perm=[1,0]),
+            seg_ids=tf.transpose(segment_ids, perm=[1,0]))
         
-        result = model.get_sequence_output()
+        result = tf.transpose(model.get_sequence_output(), perm=[1,0,2])
         result_mask = tf.cast(tf.expand_dims(1 - input_masks, axis=-1), dtype=tf.float32)
 
         kernel_initializer = tf.glorot_uniform_initializer(seed=6233, dtype=tf.float32)
@@ -665,12 +665,7 @@ class XLNetPredictRecorder(object):
                  tokenizer):
         """Construct XLNet predict recorder"""
         self.output_path = os.path.join(output_dir, "predict.{0}".format(time.time()))
-        
         self.label_list = label_list
-        self.label_map = {}
-        for (i, label) in enumerate(self.label_list):
-            self.label_map[label] = i
-        
         self.max_seq_length = max_seq_length
         self.tokenizer = tokenizer
     
@@ -834,7 +829,7 @@ def main(_):
             "label_ids": feature.label_ids,
             "predict_ids": predict["predict"].tolist()
         } for feature, predict in zip(predict_features, result)]
-        print(predicts[:5])
+        
         predict_recorder.record(predicts)
     
     if FLAGS.do_export:
