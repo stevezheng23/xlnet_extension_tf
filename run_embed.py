@@ -466,12 +466,12 @@ class XLNetModelBuilder(object):
         model = xlnet.XLNetModel(
             xlnet_config=model_config,
             run_config=run_config,
-            input_ids=input_ids,
-            input_mask=input_mask,
-            seg_ids=segment_ids)
+            input_ids=tf.transpose(input_ids, perm=[1,0]),
+            input_mask=tf.transpose(input_mask, perm=[1,0]),
+            seg_ids=tf.transpose(segment_ids, perm=[1,0]))
         
         if model_type == "token":
-            output_result = model.get_sequence_output()
+            output_result = tf.transpose(model.get_sequence_output(), perm=[1,0,2])
         else:
             output_result = model.get_pooled_out("last")
         
