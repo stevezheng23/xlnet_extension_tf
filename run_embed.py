@@ -8,7 +8,7 @@ import os
 import tensorflow as tf
 import sentencepiece as sp
 
-from xlnet import xlnet
+import xlnet_util
 from xlnet import prepro_utils
 from xlnet import model_utils
 
@@ -463,7 +463,7 @@ class XLNetModelBuilder(object):
                       segment_ids,
                       model_type):
         """Create XLNet core model"""
-        model = xlnet.XLNetModel(
+        model = xlnet_util.XLNetModel(
             xlnet_config=model_config,
             run_config=run_config,
             input_ids=tf.transpose(input_ids, perm=[1,0]),
@@ -522,8 +522,8 @@ def main(_):
     tf.logging.set_verbosity(tf.logging.INFO)
     
     tpu_config = model_utils.configure_tpu(FLAGS)
-    model_config = xlnet.XLNetConfig(json_path=FLAGS.model_config_path)
-    run_config = xlnet.create_run_config(False, True, FLAGS)
+    model_config = xlnet_util.XLNetConfig(json_path=FLAGS.model_config_path)
+    run_config = xlnet_util.create_run_config(False, True, FLAGS)
     
     model_builder = XLNetModelBuilder(
         default_model_config=model_config,
