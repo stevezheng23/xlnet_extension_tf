@@ -200,12 +200,14 @@ class XLNetExampleConverter(object):
                                example,
                                logging=False):
         """Converts a single `InputExample` into a single `InputFeatures`."""
+        default_feature = InputFeatures(
+            input_ids=[0] * self.max_seq_length,
+            input_mask=[1] * self.max_seq_length,
+            segment_ids=[0] * self.max_seq_length,
+            label_id=0)
+        
         if isinstance(example, PaddingInputExample):
-            return InputFeatures(
-                input_ids=[0] * self.max_seq_length,
-                input_mask=[1] * self.max_seq_length,
-                segment_ids=[0] * self.max_seq_length,
-                label_id=0)
+            return default_feature
         
         tokens_a = self.tokenizer.tokenize(example.text_a)
         tokens_b = None

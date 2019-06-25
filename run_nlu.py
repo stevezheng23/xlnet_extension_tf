@@ -277,24 +277,27 @@ class XLNetExampleConverter(object):
                                example,
                                logging=False):
         """Converts a single `InputExample` into a single `InputFeatures`."""
+        default_feature = InputFeatures(
+            input_ids=[0] * self.max_seq_length,
+            input_masks=[1] * self.max_seq_length,
+            segment_ids=[0] * self.max_seq_length,
+            token_label_ids=[0] * self.max_seq_length,
+            sent_label_id=0)
+        
         if isinstance(example, PaddingInputExample):
-            return InputFeatures(
-                input_ids=[0] * self.max_seq_length,
-                input_masks=[1] * self.max_seq_length,
-                segment_ids=[0] * self.max_seq_length,
-                token_label_ids=[0] * self.max_seq_length,
-                sent_label_id=0)
+            return default_feature
         
         token_items = self.tokenizer.tokenize(example.text)
         token_label_items = example.token_label.split(" ")
         
-        assert len(token_label_items) == len([token for token in token_items if token.startswith("▁")])
+        if len(token_label_items) != len([token for token in token_items if token.startswith(prepro_utils.SPIECE_UNDERLINE)]):
+            return default_feature
         
         tokens = []
         token_labels = []
         idx = 0
         for token in token_items:
-            if token.startswith("▁"):
+            if token.startswith(prepro_utils.SPIECE_UNDERLINE):
                 token_label = token_label_items[idx]
                 idx += 1
             else:
@@ -785,14 +788,14 @@ class XLNetPredictRecorder(object):
                 if token_predict in ["<pad>", "<cls>", "<sep>", "X"]:
                     token_predict = "O"
                 
-                if input_token.startswith("▁"):
+                if input_token.startswith(prepro_utils.SPIECE_UNDERLINE):
                     decoded_tokens.append(input_token)
                     decoded_labels.append(token_label)
                     decoded_predicts.append(token_predict)
                 else:
                     decoded_tokens[-1] = decoded_tokens[-1] + input_token
             
-            decoded_text = "".join(decoded_tokens).replace("▁", " ")
+            decoded_text = "".join(decoded_tokens).replace(prepro_utils.SPIECE_UNDERLINE, " ")
             decoded_label = " ".join(decoded_labels)
             decoded_predict = " ".join(decoded_predicts)
             
