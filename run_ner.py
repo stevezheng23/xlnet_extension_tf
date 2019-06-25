@@ -270,8 +270,9 @@ class XLNetExampleConverter(object):
         token_items = self.tokenizer.tokenize(example.text)
         label_items = example.label.split(" ")
         
-        if len(label_items) != len([token for token in token_items if token.startswith(prepro_utils.SPIECE_UNDERLINE)]):
-            return default_feature
+        assert len(label_items) == len([token for token in token_items if token.startswith(prepro_utils.SPIECE_UNDERLINE)])
+        #if len(label_items) != len([token for token in token_items if token.startswith(prepro_utils.SPIECE_UNDERLINE)]):
+        #    return default_feature
         
         tokens = []
         labels = []
@@ -570,31 +571,33 @@ class XLNetModelBuilder(object):
             input_mask=tf.transpose(input_masks, perm=[1,0]),
             seg_ids=tf.transpose(segment_ids, perm=[1,0]))
         
-        result = tf.transpose(model.get_sequence_output(), perm=[1,0,2])
-        result_mask = tf.cast(tf.expand_dims(1 - input_masks, axis=-1), dtype=tf.float32)
-
-        kernel_initializer = tf.glorot_uniform_initializer(seed=6233, dtype=tf.float32)
-        bias_initializer = tf.zeros_initializer
-        dense_layer = tf.keras.layers.Dense(units=len(label_list), activation=None, use_bias=True,
-            kernel_initializer=kernel_initializer, bias_initializer=bias_initializer,
-            kernel_regularizer=None, bias_regularizer=None, trainable=True)
-
-        dropout_layer = tf.keras.layers.Dropout(rate=0.1, seed=872)
-
-        result = dense_layer(result)
-        if mode == tf.estimator.ModeKeys.TRAIN:
-            result = dropout_layer(result)
-
-        masked_predict = result * result_mask + MIN_FLOAT * (1 - result_mask)
-        predict_ids = tf.cast(tf.argmax(tf.nn.softmax(masked_predict, axis=-1), axis=-1), dtype=tf.int32)
+        with tf.variable_scope("ner", reuse=tf.AUTO_REUSE):
+            result = tf.transpose(model.get_sequence_output(), perm=[1,0,2])
+            result_mask = tf.cast(tf.expand_dims(1 - input_masks, axis=-1), dtype=tf.float32)
+            
+            kernel_initializer = tf.glorot_uniform_initializer(seed=6233, dtype=tf.float32)
+            bias_initializer = tf.zeros_initializer
+            dense_layer = tf.keras.layers.Dense(units=len(label_list), activation=None, use_bias=True,
+                kernel_initializer=kernel_initializer, bias_initializer=bias_initializer,
+                kernel_regularizer=None, bias_regularizer=None, trainable=True)
+            
+            dropout_layer = tf.keras.layers.Dropout(rate=0.1, seed=872)
+            
+            result = dense_layer(result)
+            if mode == tf.estimator.ModeKeys.TRAIN:
+                result = dropout_layer(result)
+            
+            masked_predict = result * result_mask + MIN_FLOAT * (1 - result_mask)
+            predict_ids = tf.cast(tf.argmax(tf.nn.softmax(masked_predict, axis=-1), axis=-1), dtype=tf.int32)
         
         loss = tf.constant(0.0, dtype=tf.float32)
         if mode in [tf.estimator.ModeKeys.TRAIN, tf.estimator.ModeKeys.EVAL] and label_ids is not None:
-            label = tf.cast(label_ids, dtype=tf.float32)
-            label_mask = tf.cast(1 - input_masks, dtype=tf.float32)
-            masked_label = tf.cast(label * label_mask, dtype=tf.int32)
-            cross_entropy = tf.nn.sparse_softmax_cross_entropy_with_logits(labels=masked_label, logits=masked_predict)
-            loss = tf.reduce_sum(cross_entropy * label_mask) / tf.reduce_sum(tf.reduce_max(label_mask, axis=-1))
+            with tf.variable_scope("loss", reuse=tf.AUTO_REUSE):
+                label = tf.cast(label_ids, dtype=tf.float32)
+                label_mask = tf.cast(1 - input_masks, dtype=tf.float32)
+                masked_label = tf.cast(label * label_mask, dtype=tf.int32)
+                cross_entropy = tf.nn.sparse_softmax_cross_entropy_with_logits(labels=masked_label, logits=masked_predict)
+                loss = tf.reduce_sum(cross_entropy * label_mask) / tf.reduce_sum(tf.reduce_max(label_mask, axis=-1))
         
         return loss, predict_ids
     
