@@ -2,15 +2,18 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import sys
+sys.path.append('xlnet') # walkaround due to submodule absolute import...
+
 import collections
 import os
 
 import tensorflow as tf
 import sentencepiece as sp
 
-import xlnet_util
-from xlnet import prepro_utils
-from xlnet import model_utils
+import xlnet
+import prepro_utils
+import model_utils
 
 flags = tf.flags
 FLAGS = flags.FLAGS
@@ -463,7 +466,7 @@ class XLNetModelBuilder(object):
                       segment_ids,
                       model_type):
         """Create XLNet core model"""
-        model = xlnet_util.XLNetModel(
+        model = xlnet.XLNetModel(
             xlnet_config=model_config,
             run_config=run_config,
             input_ids=tf.transpose(input_ids, perm=[1,0]),
@@ -522,8 +525,8 @@ def main(_):
     tf.logging.set_verbosity(tf.logging.INFO)
     
     tpu_config = model_utils.configure_tpu(FLAGS)
-    model_config = xlnet_util.XLNetConfig(json_path=FLAGS.model_config_path)
-    run_config = xlnet_util.create_run_config(False, True, FLAGS)
+    model_config = xlnet.XLNetConfig(json_path=FLAGS.model_config_path)
+    run_config = xlnet.create_run_config(False, True, FLAGS)
     
     model_builder = XLNetModelBuilder(
         default_model_config=model_config,
