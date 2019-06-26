@@ -270,9 +270,8 @@ class XLNetExampleConverter(object):
         token_items = self.tokenizer.tokenize(example.text)
         label_items = example.label.split(" ")
         
-        assert len(label_items) == len([token for token in token_items if token.startswith(prepro_utils.SPIECE_UNDERLINE)])
-        #if len(label_items) != len([token for token in token_items if token.startswith(prepro_utils.SPIECE_UNDERLINE)]):
-        #    return default_feature
+        if len(label_items) != len([token for token in token_items if token.startswith(prepro_utils.SPIECE_UNDERLINE)]):
+            return default_feature
         
         tokens = []
         labels = []
