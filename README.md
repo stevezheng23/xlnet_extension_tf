@@ -1,5 +1,5 @@
 # XLNet Extension
-XLNet is a generalized autoregressive pretraining method proposed by CMU & Google Brain, which outperforms BERT on 20 NLP tasks ranging from question answering, natural language inference, sentiment analysis, and document ranking. XLNet is inspired by pros and cons of auto-regressive and auto-encoding methods to overcome limitation of both sides, which uses a permutation language modeling objective to learn bidirectional context and integrates ideas from Transformer-XL into model architecture. This project is aiming to provide extensions built on top of current XLNet and bring power of XLNet to other NLP tasks like NER and NLU.
+XLNet is a generalized autoregressive pretraining method proposed by CMU & Google Brain, which outperforms BERT on 20 NLP tasks ranging from question answering, natural language inference, sentiment analysis, and document ranking. XLNet is inspired by the pros and cons of auto-regressive and auto-encoding methods to overcome limitation of both sides, which uses a permutation language modeling objective to learn bidirectional context and integrates ideas from Transformer-XL into model architecture. This project is aiming to provide extensions built on top of current XLNet and bring power of XLNet to other NLP tasks like NER and NLU.
 <p align="center"><img src="/docs/xlnet.tasks.png" width=800></p>
 <p align="center"><i>Figure 1: Illustrations of fine-tuning XLNet on different tasks</i></p>
 
@@ -56,6 +56,30 @@ docker run -p 8500:8500 \
   -e MODEL_NAME=ner \
   -t tensorflow/serving
 ```
+
+## Experiment
+### CoNLL2003-NER
+<p align="center"><img src="/docs/xlnet.ner.png" width=500></p>
+<p align="center"><i>Figure 2: Illustrations of fine-tuning XLNet on NER task</i></p>
+
+|    CoNLL2003 - NER  |      Dev      |      Test     |
+|:-------------------:|:-------------:|:-------------:|
+|       F1 Score      |     95.81     |     92.20     |
+|      Precision      |     95.22     |     91.17     |
+|         Recall      |     96.40     |     93.25     |
+
+<p><i>Table 1: The performance of XLNet-large finetuned model on CoNLL2003-NER task with setting: batch size = 32, learning rate = 2e-5, num steps = 2,500</i></p>
+
+### ATIS-NLU
+<p align="center"><img src="/docs/xlnet.nlu.png" width=500></p>
+<p align="center"><i>Figure 3: Illustrations of fine-tuning XLNet on NLU task</i></p>
+
+|      ATIS - NLU     |      Test     |
+|:-------------------:|:-------------:|
+|  Accuracy - Intent  |     97.76     |
+|    F1 Score - Slot  |     94.34     |
+
+<p><i>Table 2: The performance of XLNet-large finetuned model on ATIS-NLU task with setting: batch size = 32, learning rate = 2e-5, num steps = 1,000</i></p>
 
 ## Reference
 * Zhilin Yang, Zihang Dai, Yiming Yang, Jaime Carbonell, Ruslan Salakhutdinov and Quoc V. Le. [XLNet: Generalized autoregressive pretraining for language understanding](https://arxiv.org/abs/1906.08237) [2019]
