@@ -13,7 +13,7 @@ import json
 import tensorflow as tf
 import sentencepiece as sp
 
-import xlnet
+from xlnet import xlnet
 import prepro_utils
 import model_utils
 
