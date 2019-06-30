@@ -11,6 +11,7 @@ import time
 import json
 
 import tensorflow as tf
+import numpy as np
 import sentencepiece as sp
 
 from xlnet import xlnet
@@ -30,6 +31,8 @@ flags.DEFINE_string("export_dir", None, "Export directory where saved model loca
 flags.DEFINE_string("task_name", None, "The name of the task to train.")
 flags.DEFINE_string("model_config_path", None, "Config file of the pre-trained model.")
 flags.DEFINE_string("init_checkpoint", None, "Initial checkpoint of the pre-trained model.")
+flags.DEFINE_integer("random_seed", 100, "Random seed for weight initialzation.")
+flags.DEFINE_string("predict_tag", None, "Predict tag for predict result tracking.")
 
 flags.DEFINE_bool("do_train", False, "Whether to run training.")
 flags.DEFINE_bool("do_eval", False, "Whether to run evaluation.")
@@ -174,7 +177,7 @@ class NluProcessor(object):
 
                 return data_list
         else:
-            raise FileNotFoundError("data path not found")
+            raise FileNotFoundError("data path not found: {0}".format(data_path))
     
     def _read_json(self,
                    data_path):
@@ -183,7 +186,7 @@ class NluProcessor(object):
                 data_list = json.load(file)
                 return data_list
         else:
-            raise FileNotFoundError("data path not found")
+            raise FileNotFoundError("data path not found: {0}".format(data_path))
     
     def _get_example(self,
                      data_list):
@@ -472,7 +475,7 @@ class XLNetInputBuilder(object):
             
             if is_training:
                 d = d.repeat()
-                d = d.shuffle(buffer_size=100)
+                d = d.shuffle(buffer_size=100, seed=np.random.randint(10000))
             
             d = d.batch(batch_size=batch_size, drop_remainder=drop_remainder)
             return d
@@ -522,7 +525,7 @@ class XLNetInputBuilder(object):
             
             if is_training:
                 d = d.repeat()
-                d = d.shuffle(buffer_size=100)
+                d = d.shuffle(buffer_size=100, seed=np.random.randint(10000))
             
             d = d.apply(tf.contrib.data.map_and_batch(
                 lambda record: _decode_record(record, name_to_features),
@@ -605,13 +608,13 @@ class XLNetModelBuilder(object):
             token_result = tf.transpose(model.get_sequence_output(), perm=[1,0,2])
             token_result_mask = tf.cast(tf.expand_dims(1 - input_masks, axis=-1), dtype=tf.float32)
             
-            token_kernel_initializer = tf.glorot_uniform_initializer(seed=9754, dtype=tf.float32)
+            token_kernel_initializer = tf.glorot_uniform_initializer(seed=np.random.randint(10000), dtype=tf.float32)
             token_bias_initializer = tf.zeros_initializer
             token_dense_layer = tf.keras.layers.Dense(units=len(token_label_list), activation=None, use_bias=True,
                 kernel_initializer=token_kernel_initializer, bias_initializer=token_bias_initializer,
                 kernel_regularizer=None, bias_regularizer=None, trainable=True)
             
-            token_dropout_layer = tf.keras.layers.Dropout(rate=0.1, seed=872)
+            token_dropout_layer = tf.keras.layers.Dropout(rate=0.1, seed=np.random.randint(10000))
             
             token_result = token_dense_layer(token_result)
             if mode == tf.estimator.ModeKeys.TRAIN:
@@ -743,9 +746,10 @@ class XLNetPredictRecorder(object):
                  token_label_list,
                  sent_label_list,
                  max_seq_length,
-                 tokenizer):
+                 tokenizer,
+                 predict_tag=None):
         """Construct XLNet predict recorder"""
-        self.output_path = os.path.join(output_dir, "predict.{0}".format(time.time()))
+        self.output_path = os.path.join(output_dir, "predict.{0}.json".format(predict_tag if predict_tag else str(time.time())))
         
         self.token_label_list = token_label_list
         self.sent_label_list = sent_label_list
@@ -819,6 +823,8 @@ class XLNetPredictRecorder(object):
 
 def main(_):
     tf.logging.set_verbosity(tf.logging.INFO)
+    
+    np.random.seed(FLAGS.random_seed)
     
     processor = NluProcessor(
         data_dir=FLAGS.data_dir,
@@ -913,7 +919,8 @@ def main(_):
             token_label_list=token_label_list,
             sent_label_list=sent_label_list,
             max_seq_length=FLAGS.max_seq_length,
-            tokenizer=tokenizer)
+            tokenizer=tokenizer,
+            predict_tag=FLAGS.predict_tag)
         
         predicts = [{
             "input_ids": feature.input_ids,
