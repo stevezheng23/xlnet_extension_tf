@@ -62,24 +62,24 @@ docker run -p 8500:8500 \
 <p align="center"><img src="/docs/xlnet.ner.png" width=500></p>
 <p align="center"><i>Figure 2: Illustrations of fine-tuning XLNet on NER task</i></p>
 
-|    CoNLL2003 - NER  |      Dev      |      Test     |
-|:-------------------:|:-------------:|:-------------:|
-|       F1 Score      |     95.81     |     92.20     |
-|      Precision      |     95.22     |     91.17     |
-|         Recall      |     96.40     |     93.25     |
+|    CoNLL2003 - NER  |   Avg. (5-run)   |      Best     |
+|:-------------------:|:----------------:|:-------------:|
+|      Precision      |   91.36 ± 0.50   |     92.14     |
+|         Recall      |   92.95 ± 0.24   |     93.20     |
+|       F1 Score      |   92.15 ± 0.35   |     92.67     |
 
-<p><i>Table 1: The performance of XLNet-large finetuned model on CoNLL2003-NER task with setting: batch size = 32, learning rate = 2e-5, num steps = 2,500</i></p>
+<p><i>Table 1: The test set performance of XLNet-large finetuned model on CoNLL2003-NER task with setting: batch size = 16, max length = 128, learning rate = 2e-5, num steps = 4,000</i></p>
 
 ### ATIS-NLU
 <p align="center"><img src="/docs/xlnet.nlu.png" width=500></p>
 <p align="center"><i>Figure 3: Illustrations of fine-tuning XLNet on NLU task</i></p>
 
-|      ATIS - NLU     |      Test     |
-|:-------------------:|:-------------:|
-|  Accuracy - Intent  |     97.76     |
-|    F1 Score - Slot  |     94.34     |
+|      ATIS - NLU     |   Avg. (5-run)   |      Best     |
+|:-------------------:|:----------------:|:-------------:|
+|  Accuracy - Intent  |   97.51 ± 0.09   |     97.54     |
+|    F1 Score - Slot  |   95.48 ± 0.30   |     95.73     |
 
-<p><i>Table 2: The performance of XLNet-large finetuned model on ATIS-NLU task with setting: batch size = 32, learning rate = 2e-5, num steps = 1,000</i></p>
+<p><i>Table 2: The test set performance of XLNet-large finetuned model on ATIS-NLU task with setting: batch size = 16, max length = 128, learning rate = 5e-5, num steps = 2,000</i></p>
 
 ## Reference
 * Zhilin Yang, Zihang Dai, Yiming Yang, Jaime Carbonell, Ruslan Salakhutdinov and Quoc V. Le. [XLNet: Generalized autoregressive pretraining for language understanding](https://arxiv.org/abs/1906.08237) [2019]
