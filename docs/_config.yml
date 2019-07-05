@@ -1,1 +1,3 @@
 theme: jekyll-theme-cayman
+title: XLNet Extension
+description: This project is a XLNet extension built on top of official XLNet implementation. It extends the powet of current XLNet model to other NLP tasks (e.g. NER, NLU, etc.)
