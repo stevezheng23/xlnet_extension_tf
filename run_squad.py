@@ -10,6 +10,7 @@ import os
 import os.path
 import json
 import pickle
+import time
 
 import tensorflow as tf
 import numpy as np
@@ -21,6 +22,7 @@ import prepro_utils
 import model_utils
 import squad_utils
 
+MAX_FLOAT = 1e30
 MIN_FLOAT = -1e30
 
 flags = tf.flags
@@ -37,6 +39,7 @@ flags.DEFINE_string("init_checkpoint", default=None, help="Initial checkpoint of
 flags.DEFINE_string("spiece_model_file", default=None, help="Sentence Piece model path.")
 flags.DEFINE_bool("overwrite_data", default=False, help="If False, will use cached data if available.")
 flags.DEFINE_integer("random_seed", default=100, help="Random seed for weight initialzation.")
+flags.DEFINE_string("predict_tag", None, "Predict tag for predict result tracking.")
 
 flags.DEFINE_bool("do_train", default=False, help="Whether to run training.")
 flags.DEFINE_bool("do_predict", default=False, help="Whether to run prediction.")
@@ -91,10 +94,7 @@ flags.DEFINE_string("master", None, "TensorFlow master URL")
 flags.DEFINE_integer("iterations", 1000, "number of iterations per TPU training loop.")
 
 class InputExample(object):
-    """A single training/test example for simple sequence classification.
-    
-    For examples without an answer, the start and end position are -1.
-    """
+    """A single SQuAD example."""
     def __init__(self,
                  qas_id,
                  question_text,
@@ -122,7 +122,7 @@ class InputExample(object):
         return s
 
 class InputFeatures(object):
-    """A single set of features of data."""
+    """A single SQuAD feature."""
     def __init__(self,
                  unique_id,
                  qas_id,
@@ -154,6 +154,22 @@ class InputFeatures(object):
         self.start_position = start_position
         self.end_position = end_position
         self.is_impossible = is_impossible
+
+class OutputResult(object):
+    """A single SQuAD result."""
+    def __init__(self,
+                 unique_id,
+                 answer_prob,
+                 start_prob,
+                 start_index,
+                 end_prob,
+                 end_index):
+        self.unique_id = unique_id
+        self.answer_prob = answer_prob
+        self.start_prob = start_prob
+        self.start_index = start_index
+        self.end_prob = end_prob
+        self.end_index = end_index
 
 class SquadPipeline(object):
     """Pipeline for SQuAD dataset."""
@@ -1063,15 +1079,163 @@ class XLNetModelBuilder(object):
 
 class XLNetPredictProcessor(object):
     """Default predict processor for XLNet"""
-    def __init__(self):
+    def __init__(self,
+                 output_dir,
+                 n_best_size,
+                 start_n_top,
+                 end_n_top,
+                 max_answer_length,
+                 tokenizer,
+                 predict_tag=None):
         """Construct XLNet predict processor"""
-        pass
+        self.n_best_size = n_best_size
+        self.start_n_top = start_n_top
+        self.end_n_top = end_n_top
+        self.max_answer_length = max_answer_length
+        self.tokenizer = tokenizer
+        
+        predict_tag = predict_tag if predict_tag else str(time.time())
+        self.output_summary = os.path.join(output_dir, "predict.{0}.summary.json".format(predict_tag))
+        self.output_detail = os.path.join(output_dir, "predict.{0}.detail.json".format(predict_tag))
+    
+    def _write_to_json(self,
+                       data_list,
+                       data_path):
+        data_folder = os.path.dirname(data_path)
+        if not os.path.exists(data_folder):
+            os.mkdir(data_folder)
+
+        with open(data_path, "w") as file:  
+            json.dump(data_list, file, indent=4)
+    
+    def _write_to_text(self,
+                       data_list,
+                       data_path):
+        data_folder = os.path.dirname(data_path)
+        if not os.path.exists(data_folder):
+            os.mkdir(data_folder)
+
+        with open(data_path, "w") as file:
+            for data in data_list:
+                file.write("{0}\n".format(data))
     
     def process(self,
                 examples,
                 features,
                 results):
-        pass
+        qas_id_to_features = {}
+        unique_id_to_feature = {}
+        for feature in features:
+            if feature.qas_id not in qas_id_to_features:
+                qas_id_to_features[feature.qas_id] = []
+            
+            qas_id_to_features[feature.qas_id].append(feature)
+            unique_id_to_feature[feature.unique_id] = feature
+        
+        unique_id_to_result = {}
+        for result in results:
+            unique_id_to_result[result.unique_id] = result
+        
+        predict_summary_list = []
+        predict_detail_list = []
+        num_example = len(examples)
+        for (example_idx, example) in enumerate(examples):
+            if example_idx % 1000 == 0:
+                tf.logging.info('Updating {0}/{1} example with predict'.format(example_idx, num_example))
+            
+            if example.qas_id not in qas_id_to_features:
+                tf.logging.warning('No feature found for example: {0}'.format(example.qas_id))
+                continue
+            
+            example_answer_prob = MAX_FLOAT
+            example_all_predicts = []
+            example_features = qas_id_to_features[example.qas_id]
+            for example_feature in example_features:
+                if example_feature.unique_id not in unique_id_to_result:
+                    tf.logging.warning('No result found for feature: {0}'.format(example_feature.unique_id))
+                    continue
+                
+                example_result = unique_id_to_result[example_feature.unique_id]
+                example_answer_prob = min(example_answer_prob, float(example_result.answer_prob))
+                for i in range(self.start_n_top):
+                    start_prob = example_result.start_prob[i]
+                    start_index = example_result.start_index[i]
+                    
+                    for j in range(self.end_n_top):
+                        end_prob = example_result.end_prob[i][j]
+                        end_index = example_result.end_index[i][j]
+                        
+                        answer_length = end_index - start_index + 1
+                        if end_index < start_index or answer_length > self.max_answer_length:
+                            continue
+                        
+                        if start_index > example_feature.para_length or end_index > example_feature.para_length:
+                            continue
+                        
+                        if start_index not in example_feature.token2doc_index:
+                            continue
+                        
+                        example_all_predicts.append({
+                            "unique_id": example_result.unique_id,
+                            "start_prob": start_prob,
+                            "start_index": start_index,
+                            "end_prob": end_prob,
+                            "end_index": end_index,
+                            "predict_score": np.log(start_prob) + np.log(end_prob)
+                        })
+            
+            example_all_predicts = sorted(example_all_predicts, key=lambda x: x["predict_score"], reverse=True)
+            
+            is_visited = set()
+            example_top_predicts = []
+            for example_predict in example_all_predicts:
+                if len(example_top_predicts) >= self.n_best_size:
+                    break
+                
+                example_feature = unique_id_to_feature[example_predict["unique_id"]]
+                predict_start = example_feature.token2char_raw_start_index[example_predict["start_index"]]
+                predict_end = example_feature.token2char_raw_end_index[example_predict["end_index"]]
+                predict_text = example.paragraph_text[predict_start:predict_end + 1].strip()
+                
+                if predict_text in is_visited:
+                    continue
+                
+                is_visited.add(predict_text)
+                
+                example_top_predicts.append({
+                    "predict_text": predict_text,
+                    "start_prob": float(example_predict["start_prob"]),
+                    "end_prob": float(example_predict["end_prob"]),
+                    "predict_score": float(example_predict["predict_score"])
+                })
+            
+            if len(example_top_predicts) == 0:
+                example_top_predicts.append({
+                    "predict_text": "",
+                    "start_prob": 0.0,
+                    "end_prob": 0.0,
+                    "predict_score": 0.0
+                })
+            
+            example_best_predict = example_top_predicts[0]
+            
+            predict_summary_list.append({
+                "qas_id": example.qas_id,
+                "answer_prob": example_answer_prob,
+                "start_prob": example_best_predict["start_prob"],
+                "end_prob": example_best_predict["end_prob"],
+                "predict_text": example_best_predict["predict_text"]
+            })
+                                          
+            predict_detail_list.append({
+                "qas_id": example.qas_id,
+                "answer_prob": example_answer_prob,
+                "best_predict": example_best_predict,
+                "top_predicts": example_top_predicts,
+            })
+        
+        self._write_to_json(predict_summary_list, self.output_summary)
+        self._write_to_json(predict_detail_list, self.output_detail)
 
 def main(_):
     tf.logging.set_verbosity(tf.logging.INFO)
@@ -1153,16 +1317,24 @@ def main(_):
         predict_input_fn = XLNetInputBuilder.get_input_fn(predict_record_file, FLAGS.max_seq_length, False, False)
         results = estimator.predict(input_fn=predict_input_fn)
         
-        predict_results = [{
-            "unique_id": result["unique_id"],
-            "answer_prob": result["answer_prob"].tolist(),
-            "start_prob": result["start_prob"].tolist(),
-            "start_index": result["start_index"].tolist(),
-            "end_prob": result["end_prob"].tolist(),
-            "end_index": result["end_index"].tolist()
-        } for result in results]
+        predict_results = [OutputResult(
+            unique_id=result["unique_id"],
+            answer_prob=result["answer_prob"],
+            start_prob=result["start_prob"].tolist(),
+            start_index=result["start_index"].tolist(),
+            end_prob=result["end_prob"].tolist(),
+            end_index=result["end_index"].tolist()
+        ) for result in results]
         
-        predict_processor = XLNetPredictProcessor()
+        predict_processor = XLNetPredictProcessor(
+            output_dir=FLAGS.output_dir,
+            n_best_size=FLAGS.n_best_size,
+            start_n_top=FLAGS.start_n_top,
+            end_n_top=FLAGS.end_n_top,
+            max_answer_length=FLAGS.max_answer_length,
+            tokenizer=tokenizer,
+            predict_tag=FLAGS.predict_tag)
+        
         predict_processor.process(predict_examples, predict_features, predict_results)
     
     if FLAGS.do_export:
