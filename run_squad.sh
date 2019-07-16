@@ -5,6 +5,10 @@ for i in "$@"
       GPUDEVICE="${i#*=}"
       shift
       ;;
+      -n=*|--numgpus=*)
+      NUMGPUS="${i#*=}"
+      shift
+      ;;
       -t=*|--taskname=*)
       TASKNAME="${i#*=}"
       shift
@@ -65,6 +69,7 @@ for i in "$@"
   done
 
 echo "gpu device     = ${GPUDEVICE}"
+echo "num gpus       = ${NUMGPUS}"
 echo "task name      = ${TASKNAME}"
 echo "random seed    = ${RANDOMSEED}"
 echo "predict tag    = ${PREDICTTAG}"
@@ -81,6 +86,7 @@ echo "warmup steps   = ${WARMUPSTEPS}"
 echo "save steps     = ${SAVESTEPS}"
 
 alias python=python3
+mkdir ${OUTPUTDIR}
 
 CUDA_VISIBLE_DEVICES=${GPUDEVICE} python run_squad.py \
 --spiece_model_file=${MODELDIR}/spiece.model \
@@ -100,7 +106,7 @@ CUDA_VISIBLE_DEVICES=${GPUDEVICE} python run_squad.py \
 --train_batch_size=${BATCHSIZE} \
 --predict_batch_size=${BATCHSIZE} \
 --num_hosts=1 \
---num_core_per_host=1 \
+--num_core_per_host=${NUMGPUS} \
 --learning_rate=${LEARNINGRATE} \
 --train_steps=${TRAINSTEPS} \
 --warmup_steps=${WARMUPSTEPS} \
