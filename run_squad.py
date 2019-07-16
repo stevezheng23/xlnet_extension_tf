@@ -20,7 +20,6 @@ from xlnet import xlnet
 import function_builder
 import prepro_utils
 import model_utils
-import squad_utils
 
 MAX_FLOAT = 1e30
 MIN_FLOAT = -1e30

@@ -1,0 +1,126 @@
+for i in "$@"
+  do
+    case $i in
+      -g=*|--gpudevice=*)
+      GPUDEVICE="${i#*=}"
+      shift
+      ;;
+      -t=*|--taskname=*)
+      TASKNAME="${i#*=}"
+      shift
+      ;;
+      -r=*|--randomseed=*)
+      RANDOMSEED="${i#*=}"
+      shift
+      ;;
+      -p=*|--predicttag=*)
+      PREDICTTAG="${i#*=}"
+      shift
+      ;;
+      -m=*|--modeldir=*)
+      MODELDIR="${i#*=}"
+      shift
+      ;;
+      -d=*|--datadir=*)
+      DATADIR="${i#*=}"
+      shift
+      ;;
+      -o=*|--outputdir=*)
+      OUTPUTDIR="${i#*=}"
+      shift
+      ;;
+      --seqlen=*)
+      SEQLEN="${i#*=}"
+      shift
+      ;;
+      --querylen=*)
+      QUERYLEN="${i#*=}"
+      shift
+      ;;
+      --answerlen=*)
+      ANSWERLEN="${i#*=}"
+      shift
+      ;;
+      --batchsize=*)
+      BATCHSIZE="${i#*=}"
+      shift
+      ;;
+      --learningrate=*)
+      LEARNINGRATE="${i#*=}"
+      shift
+      ;;
+      --trainsteps=*)
+      TRAINSTEPS="${i#*=}"
+      shift
+      ;;
+      --warmupsteps=*)
+      WARMUPSTEPS="${i#*=}"
+      shift
+      ;;
+      --savesteps=*)
+      SAVESTEPS="${i#*=}"
+      shift
+      ;;
+    esac
+  done
+
+echo "gpu device     = ${GPUDEVICE}"
+echo "task name      = ${TASKNAME}"
+echo "random seed    = ${RANDOMSEED}"
+echo "predict tag    = ${PREDICTTAG}"
+echo "model dir      = ${MODELDIR}"
+echo "data dir       = ${DATADIR}"
+echo "output dir     = ${OUTPUTDIR}"
+echo "seq len        = ${SEQLEN}"
+echo "query len      = ${QUERYLEN}"
+echo "answer len     = ${ANSWERLEN}"
+echo "batch size     = ${BATCHSIZE}"
+echo "learning rate  = ${LEARNINGRATE}"
+echo "train steps    = ${TRAINSTEPS}"
+echo "warmup steps   = ${WARMUPSTEPS}"
+echo "save steps     = ${SAVESTEPS}"
+
+alias python=python3
+
+CUDA_VISIBLE_DEVICES=${GPUDEVICE} python run_squad.py \
+--spiece_model_file=${MODELDIR}/spiece.model \
+--model_config_path=${MODELDIR}/xlnet_config.json \
+--init_checkpoint=${MODELDIR}/xlnet_model.ckpt \
+--task_name=${TASKNAME} \
+--random_seed=${RANDOMSEED} \
+--predict_tag=${PREDICTTAG} \
+--lower_case=false \
+--data_dir=${DATADIR}/ \
+--output_dir=${OUTPUTDIR}/data \
+--model_dir=${OUTPUTDIR}/checkpoint \
+--export_dir=${OUTPUTDIR}/export \
+--max_seq_length=${SEQLEN} \
+--max_query_length=${QUERYLEN} \
+--max_answer_length=${ANSWERLEN} \
+--train_batch_size=${BATCHSIZE} \
+--predict_batch_size=${BATCHSIZE} \
+--num_hosts=1 \
+--num_core_per_host=1 \
+--learning_rate=${LEARNINGRATE} \
+--train_steps=${TRAINSTEPS} \
+--warmup_steps=${WARMUPSTEPS} \
+--save_steps=${SAVESTEPS} \
+--do_train=true \
+--do_predict=true \
+--do_export=false \
+--overwrite_data=false
+
+python tool/convert_squad_v2.py \
+--input_file=${OUTPUTDIR}/data/predict.${PREDICTTAG}.summary.json \
+--span_file=${OUTPUTDIR}/data/predict.${PREDICTTAG}.span.json \
+--prob_file=${OUTPUTDIR}/data/predict.${PREDICTTAG}.prob.json
+
+python tool/eval_squad_v2.py \
+${DATADIR}/dev-${TASKNAME}.json \
+${OUTPUTDIR}/data/predict.${PREDICTTAG}.span.json \
+--out-file ${OUTPUTDIR}/data/predict.${PREDICTTAG}.eval.json \
+--na-prob-file ${OUTPUTDIR}/data/predict.${PREDICTTAG}.prob.json \
+--na-prob-thresh 1.0 \
+--out-image-dir ${OUTPUTDIR}/data/
+
+read -n 1 -s -r -p "Press any key to continue..."
