@@ -88,6 +88,8 @@ echo "save steps     = ${SAVESTEPS}"
 alias python=python3
 mkdir ${OUTPUTDIR}
 
+start_time=`date +%s`
+
 CUDA_VISIBLE_DEVICES=${GPUDEVICE} python run_squad.py \
 --spiece_model_file=${MODELDIR}/spiece.model \
 --model_config_path=${MODELDIR}/xlnet_config.json \
@@ -112,6 +114,34 @@ CUDA_VISIBLE_DEVICES=${GPUDEVICE} python run_squad.py \
 --warmup_steps=${WARMUPSTEPS} \
 --save_steps=${SAVESTEPS} \
 --do_train=true \
+--do_predict=false \
+--do_export=false \
+--overwrite_data=false
+
+CUDA_VISIBLE_DEVICES=${GPUDEVICE} python run_squad.py \
+--spiece_model_file=${MODELDIR}/spiece.model \
+--model_config_path=${MODELDIR}/xlnet_config.json \
+--init_checkpoint=${MODELDIR}/xlnet_model.ckpt \
+--task_name=${TASKNAME} \
+--random_seed=${RANDOMSEED} \
+--predict_tag=${PREDICTTAG} \
+--lower_case=false \
+--data_dir=${DATADIR}/ \
+--output_dir=${OUTPUTDIR}/data \
+--model_dir=${OUTPUTDIR}/checkpoint \
+--export_dir=${OUTPUTDIR}/export \
+--max_seq_length=${SEQLEN} \
+--max_query_length=${QUERYLEN} \
+--max_answer_length=${ANSWERLEN} \
+--train_batch_size=${BATCHSIZE} \
+--predict_batch_size=${BATCHSIZE} \
+--num_hosts=1 \
+--num_core_per_host=1 \
+--learning_rate=${LEARNINGRATE} \
+--train_steps=${TRAINSTEPS} \
+--warmup_steps=${WARMUPSTEPS} \
+--save_steps=${SAVESTEPS} \
+--do_train=false \
 --do_predict=true \
 --do_export=false \
 --overwrite_data=false
@@ -128,5 +158,8 @@ ${OUTPUTDIR}/data/predict.${PREDICTTAG}.span.json \
 --na-prob-file ${OUTPUTDIR}/data/predict.${PREDICTTAG}.prob.json \
 --na-prob-thresh 1.0 \
 --out-image-dir ${OUTPUTDIR}/data/
+
+end_time=`date +%s`
+echo execution time was `expr $end_time - $start_time` s.
 
 read -n 1 -s -r -p "Press any key to continue..."
