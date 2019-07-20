@@ -12,6 +12,7 @@
 ## DataSet
 * [CoNLL2003](https://www.clips.uantwerpen.be/conll2003/ner/) is a multi-task dataset, which contains 3 sub-tasks, POS tagging, syntactic chunking and NER. For NER sub-task, it contains 4 types of named entities: persons, locations, organizations and names of miscellaneous entities that do not belong to the previous three groups.
 * [ATIS](https://catalog.ldc.upenn.edu/docs/LDC93S4B/corpus.html) (Airline Travel Information System) is NLU dataset in airline travel domain. The dataset contains 4978 train and 893 test utterances classified into one of 26 intents, and each token in utterance is labeled with tags from 128 slot filling tags in IOB format.
+* [SQuAD](https://rajpurkar.github.io/SQuAD-explorer/) is a reading comprehension dataset, consisting of questions posed by crowd-workers on a set of Wikipedia articles, where the answer to every question is a segment of text, or span, from the corresponding reading passage, or the question might be unanswerable.
 
 ## Usage
 * Preprocess data
@@ -28,6 +29,8 @@ CUDA_VISIBLE_DEVICES=0 python run_ner.py \
     --model_config_path=model/cased_L-24_H-1024_A-16/xlnet_config.json \
     --init_checkpoint=model/cased_L-24_H-1024_A-16/xlnet_model.ckpt \
     --task_name=conll2003 \
+    --random_seed=100 \
+    --predict_tag=xxxxx \
     --data_dir=data/ner/conll2003 \
     --output_dir=output/ner/conll2003/data \
     --model_dir=output/ner/conll2003/checkpoint \
