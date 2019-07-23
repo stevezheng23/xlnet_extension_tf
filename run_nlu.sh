@@ -5,6 +5,10 @@ for i in "$@"
       GPUDEVICE="${i#*=}"
       shift
       ;;
+      -n=*|--numgpus=*)
+      NUMGPUS="${i#*=}"
+      shift
+      ;;
       -t=*|--taskname=*)
       TASKNAME="${i#*=}"
       shift
@@ -57,6 +61,7 @@ for i in "$@"
   done
 
 echo "gpu device     = ${GPUDEVICE}"
+echo "num gpus       = ${NUMGPUS}"
 echo "task name      = ${TASKNAME}"
 echo "random seed    = ${RANDOMSEED}"
 echo "predict tag    = ${PREDICTTAG}"
@@ -72,6 +77,8 @@ echo "save steps     = ${SAVESTEPS}"
 
 alias python=python3
 
+start_time=`date +%s`
+
 CUDA_VISIBLE_DEVICES=${GPUDEVICE} python run_nlu.py \
 --spiece_model_file=${MODELDIR}/spiece.model \
 --model_config_path=${MODELDIR}/xlnet_config.json \
@@ -86,16 +93,47 @@ CUDA_VISIBLE_DEVICES=${GPUDEVICE} python run_nlu.py \
 --export_dir=${OUTPUTDIR}/export \
 --max_seq_length=${MAXLEN} \
 --train_batch_size=${BATCHSIZE} \
+--eval_batch_size=${BATCHSIZE} \
+--predict_batch_size=${BATCHSIZE} \
 --num_hosts=1 \
---num_core_per_host=1 \
+--num_core_per_host=${NUMGPUS} \
 --learning_rate=${LEARNINGRATE} \
 --train_steps=${TRAINSTEPS} \
 --warmup_steps=${WARMUPSTEPS} \
 --save_steps=${SAVESTEPS} \
 --do_train=true \
 --do_eval=false \
+--do_predict=false \
+--do_export=false \
+--overwrite_data=false
+
+CUDA_VISIBLE_DEVICES=${GPUDEVICE} python run_nlu.py \
+--spiece_model_file=${MODELDIR}/spiece.model \
+--model_config_path=${MODELDIR}/xlnet_config.json \
+--init_checkpoint=${MODELDIR}/xlnet_model.ckpt \
+--task_name=${TASKNAME} \
+--random_seed=${RANDOMSEED} \
+--predict_tag=${PREDICTTAG} \
+--lower_case=false \
+--data_dir=${DATADIR}/ \
+--output_dir=${OUTPUTDIR}/data \
+--model_dir=${OUTPUTDIR}/checkpoint \
+--export_dir=${OUTPUTDIR}/export \
+--max_seq_length=${MAXLEN} \
+--train_batch_size=${BATCHSIZE} \
+--eval_batch_size=${BATCHSIZE} \
+--predict_batch_size=${BATCHSIZE} \
+--num_hosts=1 \
+--num_core_per_host=1 \
+--learning_rate=${LEARNINGRATE} \
+--train_steps=${TRAINSTEPS} \
+--warmup_steps=${WARMUPSTEPS} \
+--save_steps=${SAVESTEPS} \
+--do_train=false \
+--do_eval=true \
 --do_predict=true \
---do_export=false
+--do_export=false \
+--overwrite_data=false
 
 python tool/eval_sent.py \
 --input_file=${OUTPUTDIR}/data/predict.${PREDICTTAG}.json \
