@@ -79,7 +79,7 @@ alias python=python3
 
 start_time=`date +%s`
 
-CUDA_VISIBLE_DEVICES=${GPUDEVICE} python run_squad.py \
+CUDA_VISIBLE_DEVICES=${GPUDEVICE} python run_classifier.py \
 --spiece_model_file=${MODELDIR}/spiece.model \
 --model_config_path=${MODELDIR}/xlnet_config.json \
 --init_checkpoint=${MODELDIR}/xlnet_model.ckpt \
@@ -107,7 +107,7 @@ CUDA_VISIBLE_DEVICES=${GPUDEVICE} python run_squad.py \
 --do_export=false \
 --overwrite_data=false
 
-CUDA_VISIBLE_DEVICES=${GPUDEVICE} python run_squad.py \
+CUDA_VISIBLE_DEVICES=${GPUDEVICE} python run_classifier.py \
 --spiece_model_file=${MODELDIR}/spiece.model \
 --model_config_path=${MODELDIR}/xlnet_config.json \
 --init_checkpoint=${MODELDIR}/xlnet_model.ckpt \
@@ -119,9 +119,7 @@ CUDA_VISIBLE_DEVICES=${GPUDEVICE} python run_squad.py \
 --output_dir=${OUTPUTDIR}/data \
 --model_dir=${OUTPUTDIR}/checkpoint \
 --export_dir=${OUTPUTDIR}/export \
---max_seq_length=${SEQLEN} \
---max_query_length=${QUERYLEN} \
---max_answer_length=${ANSWERLEN} \
+--max_seq_length=${MAXLEN} \
 --train_batch_size=${BATCHSIZE} \
 --eval_batch_size=${BATCHSIZE} \
 --predict_batch_size=${BATCHSIZE} \
