@@ -540,7 +540,7 @@ class XLNetModelBuilder(object):
                       sent_label_ids,
                       sent_label_list,
                       mode):
-        """Creates XLNet-NLU model"""
+        """Creates XLNet-Classifier model"""
         model = xlnet.XLNetModel(
             xlnet_config=model_config,
             run_config=run_config,
@@ -565,12 +565,13 @@ class XLNetModelBuilder(object):
                 sent_result = sent_dropout_layer(sent_result)
             
             masked_sent_predict = sent_result * sent_result_mask + MIN_FLOAT * (1 - sent_result_mask)
-            sent_predict_ids = tf.cast(tf.argmax(tf.nn.softmax(masked_sent_predict, axis=-1), axis=-1), dtype=tf.int32)
-            sent_predict_scores = tf.cast(tf.reduce_max(tf.nn.softmax(masked_sent_predict, axis=-1), axis=-1), dtype=tf.float32)
+            sent_predict_probs = tf.nn.softmax(masked_sent_predict, axis=-1)
+            sent_predict_ids = tf.cast(tf.argmax(sent_predict_probs, axis=-1), dtype=tf.int32)
+            sent_predict_scores = tf.reduce_max(sent_predict_probs, axis=-1)
         
         loss = tf.constant(0.0, dtype=tf.float32)
         if mode not in [tf.estimator.ModeKeys.TRAIN, tf.estimator.ModeKeys.EVAL]:
-            return loss, sent_predict_ids, sent_predict_scores
+            return loss, sent_predict_ids, sent_predict_scores, sent_predict_probs
         
         if sent_label_ids is not None:
             with tf.variable_scope("sent_loss", reuse=tf.AUTO_REUSE):
@@ -581,7 +582,7 @@ class XLNetModelBuilder(object):
                 sent_loss = tf.reduce_sum(cross_entropy * sent_label_mask) / tf.reduce_sum(tf.reduce_max(sent_label_mask, axis=-1))
                 loss = loss + sent_loss
         
-        return loss, sent_predict_ids, sent_predict_scores
+        return loss, sent_predict_ids, sent_predict_scores, sent_predict_probs
     
     def get_model_fn(self,
                      model_config,
@@ -613,7 +614,7 @@ class XLNetModelBuilder(object):
             segment_ids = features["segment_ids"]
             sent_label_ids = features["sent_label_ids"] if mode in [tf.estimator.ModeKeys.TRAIN, tf.estimator.ModeKeys.EVAL] else None
             
-            loss, sent_predict_ids, sent_predict_scores = self._create_model(model_config, run_config,
+            loss, sent_predict_ids, sent_predict_scores, sent_predict_probs = self._create_model(model_config, run_config,
                 input_ids, input_masks, segment_ids, sent_label_ids, sent_label_list, mode)
             
             scaffold_fn = model_utils.init_from_checkpoint(FLAGS)
@@ -638,7 +639,8 @@ class XLNetModelBuilder(object):
                     mode=mode,
                     predictions={
                         "sent_predict_id": sent_predict_ids,
-                        "sent_predict_score": sent_predict_scores
+                        "sent_predict_score": sent_predict_scores,
+                        "sent_predict_prob": sent_predict_probs
                     },
                     scaffold_fn=scaffold_fn)
             
@@ -696,7 +698,8 @@ class XLNetPredictRecorder(object):
                 "text": prepro_utils.printable_text(input_text),
                 "sent_label": self.sent_label_list[predict["sent_label_id"]],
                 "sent_predict": self.sent_label_list[predict["sent_predict_id"]],
-                "sent_score": self.sent_label_list[predict["sent_predict_score"]]
+                "sent_score": float(predict["sent_predict_score"]),
+                "sent_probs": [float(prob) for prob in predict["sent_predict_prob"]]
             }
             
             decoded_results.append(decoded_result)
@@ -708,7 +711,7 @@ def main(_):
     
     np.random.seed(FLAGS.random_seed)
     
-    processor = NluProcessor(
+    processor = ClassificationProcessor(
         data_dir=FLAGS.data_dir,
         task_name=FLAGS.task_name.lower())
     
@@ -798,8 +801,9 @@ def main(_):
             "input_ids": feature.input_ids,
             "input_masks": feature.input_masks,
             "sent_label_id": feature.sent_label_id,
-            "sent_predict_id": predict["sent_predict_id"].tolist(),
-            "sent_predict_score": predict["sent_predict_score"].tolist()
+            "sent_predict_id": predict["sent_predict_id"],
+            "sent_predict_score": predict["sent_predict_score"],
+            "sent_predict_prob": predict["sent_predict_prob"].tolist()
         } for feature, predict in zip(predict_features, result)]
         
         predict_recorder.record(predicts)
