@@ -627,13 +627,13 @@ class XLNetModelBuilder(object):
             sent_result = model.get_pooled_out("last")
             sent_result_mask = tf.cast(tf.reduce_max(1 - input_masks, axis=-1, keepdims=True), dtype=tf.float32)
             
-            sent_kernel_initializer = tf.glorot_uniform_initializer(seed=408, dtype=tf.float32)
+            sent_kernel_initializer = tf.glorot_uniform_initializer(seed=np.random.randint(10000), dtype=tf.float32)
             sent_bias_initializer = tf.zeros_initializer
             sent_dense_layer = tf.keras.layers.Dense(units=len(sent_label_list), activation=None, use_bias=True,
                 kernel_initializer=sent_kernel_initializer, bias_initializer=sent_bias_initializer,
                 kernel_regularizer=None, bias_regularizer=None, trainable=True)
             
-            sent_dropout_layer = tf.keras.layers.Dropout(rate=0.1, seed=872)
+            sent_dropout_layer = tf.keras.layers.Dropout(rate=0.1, seed=np.random.randint(10000))
             
             sent_result = sent_dense_layer(sent_result)
             if mode == tf.estimator.ModeKeys.TRAIN:
