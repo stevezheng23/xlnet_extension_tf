@@ -525,14 +525,10 @@ class XLNetInputBuilder(object):
 class XLNetModelBuilder(object):
     """Default model builder for XLNet"""
     def __init__(self,
-                 default_model_config,
-                 default_run_config,
-                 default_init_checkpoint,
+                 model_config,
                  use_tpu=False):
         """Construct XLNet model builder"""
-        self.default_model_config = default_model_config
-        self.default_run_config = default_run_config
-        self.default_init_checkpoint = default_init_checkpoint
+        self.model_config = model_config
         self.use_tpu = use_tpu
     
     def _get_masked_data(self,
@@ -557,8 +553,6 @@ class XLNetModelBuilder(object):
         return masked_data_ids
     
     def _create_model(self,
-                      model_config,
-                      run_config,
                       input_ids,
                       input_masks,
                       segment_ids,
@@ -567,8 +561,8 @@ class XLNetModelBuilder(object):
                       mode):
         """Creates XLNet-NER model"""
         model = xlnet.XLNetModel(
-            xlnet_config=model_config,
-            run_config=run_config,
+            xlnet_config=self.model_config,
+            run_config=xlnet.create_run_config(mode == tf.estimator.ModeKeys.TRAIN, True, FLAGS),
             input_ids=tf.transpose(input_ids, perm=[1,0]),
             input_mask=tf.transpose(input_masks, perm=[1,0]),
             seg_ids=tf.transpose(segment_ids, perm=[1,0]))
@@ -604,9 +598,6 @@ class XLNetModelBuilder(object):
         return loss, predict_ids
     
     def get_model_fn(self,
-                     model_config,
-                     run_config,
-                     init_checkpoint,
                      label_list):
         """Returns `model_fn` closure for TPUEstimator."""
         def model_fn(features,
@@ -635,8 +626,7 @@ class XLNetModelBuilder(object):
             segment_ids = features["segment_ids"]
             label_ids = features["label_ids"] if mode in [tf.estimator.ModeKeys.TRAIN, tf.estimator.ModeKeys.EVAL] else None
 
-            loss, predict_ids = self._create_model(model_config, run_config,
-                input_ids, input_masks, segment_ids, label_ids, label_list, mode)
+            loss, predict_ids = self._create_model(input_ids, input_masks, segment_ids, label_ids, label_list, mode)
             
             scaffold_fn = model_utils.init_from_checkpoint(FLAGS)
             
@@ -754,19 +744,17 @@ def main(_):
     
     label_list = processor.get_labels()
     
-    tpu_config = model_utils.configure_tpu(FLAGS)
     model_config = xlnet.XLNetConfig(json_path=FLAGS.model_config_path)
-    run_config = xlnet.create_run_config(False, True, FLAGS)
     
     model_builder = XLNetModelBuilder(
-        default_model_config=model_config,
-        default_run_config=run_config,
-        default_init_checkpoint=FLAGS.init_checkpoint,
+        model_config=model_config,
         use_tpu=FLAGS.use_tpu)
     
-    model_fn = model_builder.get_model_fn(model_config, run_config, FLAGS.init_checkpoint, label_list)
+    model_fn = model_builder.get_model_fn(label_list)
     
     # If TPU is not available, this will fall back to normal Estimator on CPU or GPU.
+    tpu_config = model_utils.configure_tpu(FLAGS)
+    
     estimator = tf.contrib.tpu.TPUEstimator(
         use_tpu=FLAGS.use_tpu,
         model_fn=model_fn,
