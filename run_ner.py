@@ -573,14 +573,14 @@ class XLNetModelBuilder(object):
             input_mask=tf.transpose(input_masks, perm=[1,0]),
             seg_ids=tf.transpose(segment_ids, perm=[1,0]))
         
+        initializer = model.get_initializer()
+        
         with tf.variable_scope("ner", reuse=tf.AUTO_REUSE):
             result = tf.transpose(model.get_sequence_output(), perm=[1,0,2])
             result_mask = tf.cast(tf.expand_dims(1 - input_masks, axis=-1), dtype=tf.float32)
             
-            kernel_initializer = tf.glorot_uniform_initializer(seed=np.random.randint(10000), dtype=tf.float32)
-            bias_initializer = tf.zeros_initializer
             dense_layer = tf.keras.layers.Dense(units=len(label_list), activation=None, use_bias=True,
-                kernel_initializer=kernel_initializer, bias_initializer=bias_initializer,
+                kernel_initializer=initializer, bias_initializer=tf.zeros_initializer,
                 kernel_regularizer=None, bias_regularizer=None, trainable=True)
             
             dropout_layer = tf.keras.layers.Dropout(rate=0.1, seed=np.random.randint(10000))
