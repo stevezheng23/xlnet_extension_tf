@@ -146,12 +146,12 @@ CUDA_VISIBLE_DEVICES=${GPUDEVICE} python run_squad.py \
 --do_export=false \
 --overwrite_data=false
 
-python tool/convert_squad_v2.py \
+python tool/convert_squad.py \
 --input_file=${OUTPUTDIR}/data/predict.${PREDICTTAG}.summary.json \
 --span_file=${OUTPUTDIR}/data/predict.${PREDICTTAG}.span.json \
 --prob_file=${OUTPUTDIR}/data/predict.${PREDICTTAG}.prob.json
 
-python tool/eval_squad_v2.py \
+python tool/eval_squad.py \
 ${DATADIR}/dev-${TASKNAME}.json \
 ${OUTPUTDIR}/data/predict.${PREDICTTAG}.span.json \
 --out-file ${OUTPUTDIR}/data/predict.${PREDICTTAG}.eval.json \
