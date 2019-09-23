@@ -52,6 +52,7 @@ flags.DEFINE_float("init_range", default=0.1, help="Initialization std when init
 flags.DEFINE_bool("init_global_vars", default=False, help="If true, init all global vars. If false, init trainable vars only.")
 
 flags.DEFINE_bool("lower_case", default=False, help="Enable lower case nor not.")
+flags.DEFINE_integer("num_turn", default=2, help="Number of turns.")
 flags.DEFINE_integer("doc_stride", default=128, help="Doc stride")
 flags.DEFINE_integer("max_seq_length", default=512, help="Max sequence length")
 flags.DEFINE_integer("max_query_length", default=128, help="Max query length")
@@ -100,7 +101,6 @@ class InputExample(object):
                  qas_id,
                  question_text,
                  paragraph_text,
-                 raw_answer_text=None,
                  orig_answer_text=None,
                  start_position=None,
                  answer_type=None,
@@ -108,7 +108,6 @@ class InputExample(object):
         self.qas_id = qas_id
         self.question_text = question_text
         self.paragraph_text = paragraph_text
-        self.raw_answer_text = raw_answer_text
         self.orig_answer_text = orig_answer_text
         self.start_position = start_position
         self.answer_type=answer_type
@@ -190,9 +189,11 @@ class CoqaPipeline(object):
     """Pipeline for CoQA dataset."""
     def __init__(self,
                  data_dir,
-                 task_name):
+                 task_name,
+                 num_turn):
         self.data_dir = data_dir
         self.task_name = task_name
+        self.num_turn = num_turn
     
     def get_train_examples(self):
         """Gets a collection of `InputExample`s for the train set."""
@@ -288,24 +289,29 @@ class CoqaPipeline(object):
     def _get_question_text(self,
                            history,
                            question):
-        question_tokens = [history] if history else []
-        question_tokens.extend(['<s>'] + question["input_text"].split(' '))
-        
-        return " ".join(question_tokens)
+        question_tokens = ['<s>'] + question["input_text"].split(' ')
+        return " ".join(history + [" ".join(question_tokens)])
     
     def _get_question_history(self,
                               history,
                               question,
                               answer,
                               answer_type,
-                              is_skipped):
-        question_tokens = [history] if history else []
-        
+                              is_skipped,
+                              num_turn):
+        question_tokens = []
         if answer_type != "unknown" or is_skipped:
             question_tokens.extend(['<s>'] + question["input_text"].split(' '))
             question_tokens.extend(['</s>'] + answer["input_text"].split(' '))
         
-        return " ".join(question_tokens)
+        question_text = " ".join(question_tokens)
+        if question_text:
+            history.append(question_text)
+        
+        if num_turn >= 0 and len(history) > num_turn:
+            history = history[-num_turn:]
+        
+        return history
     
     def _find_answer_span(self,
                           answer_text,
@@ -332,13 +338,14 @@ class CoqaPipeline(object):
         
         paragraph_tokens = self._whitespace_tokenize(paragraph_text)
         
-        rationale_word_start, rationale_word_end = self._char_span_to_word_span(rationale_start, rationale_end, paragraph_tokens)
-        rationale_tokens = paragraph_tokens[rationale_word_start:rationale_word_end+1]
-        rationale_norm_tokens = [(CoQAEvaluator.normalize_answer(token), start, end) for token, start, end in rationale_tokens]
-        match_score, answer_start, answer_end = self._search_best_span(rationale_norm_tokens, answer_norm_tokens)
-        
-        if match_score > 0.0:
-            return answer_start, answer_end
+        if not (rationale_start == -1 or rationale_end == -1):
+            rationale_word_start, rationale_word_end = self._char_span_to_word_span(rationale_start, rationale_end, paragraph_tokens)
+            rationale_tokens = paragraph_tokens[rationale_word_start:rationale_word_end+1]
+            rationale_norm_tokens = [(CoQAEvaluator.normalize_answer(token), start, end) for token, start, end in rationale_tokens]
+            match_score, answer_start, answer_end = self._search_best_span(rationale_norm_tokens, answer_norm_tokens)
+            
+            if match_score > 0.0:
+                return answer_start, answer_end
         
         paragraph_norm_tokens = [(CoQAEvaluator.normalize_answer(token), start, end) for token, start, end in paragraph_tokens]
         match_score, answer_start, answer_end = self._search_best_span(paragraph_norm_tokens, answer_norm_tokens)
@@ -357,7 +364,10 @@ class CoqaPipeline(object):
         
         input_text = answer["input_text"].strip().lower()
         span_start, span_end = answer["span_start"], answer["span_end"]
-        span_text = paragraph_text[span_start:span_end].lower()
+        if span_start == -1 or span_end == -1:
+            span_text = ""
+        else:
+            span_text = paragraph_text[span_start:span_end].lower()
         
         if input_text in span_text:
             span_start, span_end = self._find_answer_span(input_text, span_text, span_start, span_end)
@@ -373,17 +383,33 @@ class CoqaPipeline(object):
         
         return answer_text, span_start, span_end, is_skipped
     
-    def _get_answer_type(self,
-                         answer):
-        norm_text = CoQAEvaluator.normalize_answer(answer["input_text"])
+    def _normalize_answer(self,
+                          answer):
+        norm_answer = normalize_answer(answer)
+        norm_answer_tokens = norm_answer.split(" ")
         
-        if norm_text == "unknown" or "bad_turn" in answer or (answer["span_start"] == -1 and answer["span_end"] == -1):
-            return "unknown"
+        if not norm_answer_tokens:
+            return norm_answer
         
-        if norm_text in ["yes", "true"]:
+        if norm_answer_tokens[0] == "yes" or norm_answer in ["yes", "yese", "ye", "es"]:
             return "yes"
         
-        if norm_text in ["no", "none", "false"]:
+        if norm_answer_tokens[0] == "no" or norm_answer in ["no", "not"]:
+            return "no"
+        
+        return norm_answer
+    
+    def _get_answer_type(self,
+                         answer):
+        norm_answer = self._normalize_answer(answer["input_text"])
+        
+        if norm_answer == "unknown" or "bad_turn" in answer:
+            return "unknown"
+        
+        if norm_answer == "yes":
+            return "yes"
+        
+        if norm_answer == "no":
             return "no"
         
         return "span"
@@ -413,7 +439,7 @@ class CoqaPipeline(object):
             questions = sorted(data["questions"], key=lambda x: x["turn_id"])
             answers = sorted(data["answers"], key=lambda x: x["turn_id"])
             
-            question_history = ""
+            question_history = []
             qas = list(zip(questions, answers))
             for i, (question, answer) in enumerate(qas):
                 qas_id = "{0}_{1}".format(data_id, i+1)
@@ -421,11 +447,11 @@ class CoqaPipeline(object):
                 answer_type = self._get_answer_type(answer)
                 answer_text, span_start, span_end, is_skipped = self._get_answer_span(answer, answer_type, paragraph_text)
                 question_text = self._get_question_text(question_history, question)
-                question_history = self._get_question_history(question_history, question, answer, answer_type, is_skipped)
+                question_history = self._get_question_history(question_history, question, answer, answer_type, is_skipped, self.num_turn)
                 
                 if answer_type != "unknown" and not is_skipped:
-                    orig_answer_text = self._process_found_answer(answer["input_text"], answer_text)
                     start_position = span_start
+                    orig_answer_text = self._process_found_answer(answer["input_text"], answer_text)
                 else:
                     start_position = -1
                     orig_answer_text = ""
@@ -434,7 +460,6 @@ class CoqaPipeline(object):
                     qas_id=qas_id,
                     question_text=question_text,
                     paragraph_text=paragraph_text,
-                    raw_answer_text=answer["input_text"],
                     orig_answer_text=orig_answer_text,
                     start_position=start_position,
                     answer_type=answer_type,
@@ -505,7 +530,7 @@ class XLNetExampleProcessor(object):
         self.segment_vocab_map = {}
         for (i, segment_vocab) in enumerate(self.segment_vocab_list):
             self.segment_vocab_map[segment_vocab] = i
-                
+        
         self.max_seq_length = max_seq_length
         self.max_query_length = max_query_length
         self.doc_stride = doc_stride
@@ -747,9 +772,7 @@ class XLNetExampleProcessor(object):
             token2char_raw_start_index.append(raw_start_pos)
             token2char_raw_end_index.append(raw_end_pos)
         
-        if example.answer_type in ["unknown", "yes", "no"] or example.is_skipped:
-            tokenized_start_token_pos = tokenized_end_token_pos = -1
-        else:
+        if example.answer_type not in ["unknown", "yes", "no"] and not example.is_skipped and example.orig_answer_text:
             raw_start_char_pos = example.start_position
             raw_end_char_pos = raw_start_char_pos + len(example.orig_answer_text) - 1
             tokenized_start_char_pos = self._convert_tokenized_index(raw2tokenized_char_index, raw_start_char_pos, is_start=True)
@@ -757,6 +780,8 @@ class XLNetExampleProcessor(object):
             tokenized_start_token_pos = char2token_index[tokenized_start_char_pos]
             tokenized_end_token_pos = char2token_index[tokenized_end_char_pos]
             assert tokenized_start_token_pos <= tokenized_end_token_pos
+        else:
+            tokenized_start_token_pos = tokenized_end_token_pos = -1
         
         # The -3 accounts for [CLS], [SEP] and [SEP]
         max_para_length = self.max_seq_length - len(query_tokens) - 3
@@ -848,19 +873,19 @@ class XLNetExampleProcessor(object):
             is_unk = (example.answer_type == "unknown" or example.is_skipped)
             is_yes = (example.answer_type == "yes")
             is_no = (example.answer_type == "no")
-            if is_unk or is_yes or is_no:
-                start_position = cls_index
-                end_position = cls_index
-            else:
+            if not is_unk and not is_yes and not is_no and example.orig_answer_text:
                 doc_start = doc_span["start"]
                 doc_end = doc_start + doc_span["length"] - 1
-                if tokenized_start_token_pos < doc_start or tokenized_end_token_pos > doc_end:
+                if tokenized_start_token_pos >= doc_start and tokenized_end_token_pos <= doc_end:
+                    start_position = tokenized_start_token_pos - doc_start
+                    end_position = tokenized_end_token_pos - doc_start
+                else:
                     start_position = cls_index
                     end_position = cls_index
                     is_unk = True
-                else:
-                    start_position = tokenized_start_token_pos - doc_start
-                    end_position = tokenized_end_token_pos - doc_start
+            else:
+                start_position = cls_index
+                end_position = cls_index
             
             if logging:
                 tf.logging.info("*** Example ***")
@@ -877,14 +902,15 @@ class XLNetExampleProcessor(object):
                 printable_input_tokens = [prepro_utils.printable_text(input_token) for input_token in input_tokens]
                 tf.logging.info("input_tokens: %s" % input_tokens)
                 
-                if is_unk or is_yes or is_no:
-                    tf.logging.info("unknown or yes/no example")
-                else:
+                if not is_unk and not is_yes and not is_no and example.orig_answer_text:
                     tf.logging.info("start_position: %s" % str(start_position))
                     tf.logging.info("end_position: %s" % str(end_position))
                     answer_tokens = input_tokens[start_position:end_position+1]
                     answer_text = prepro_utils.printable_text("".join(answer_tokens).replace(prepro_utils.SPIECE_UNDERLINE, " "))
                     tf.logging.info("answer_text: %s" % answer_text)
+                    tf.logging.info("answer_type: %s" % example.answer_type)
+                else:
+                    tf.logging.info("answer_type: %s" % example.answer_type)
             
             feature = InputFeatures(
                 unique_id=self.unique_id,
@@ -1117,7 +1143,7 @@ class XLNetModelBuilder(object):
         output_result = tf.transpose(model.get_sequence_output(), perm=[1,0,2])                                      # [l,b,h] --> [b,l,h]
         
         predicts = {}
-        with tf.variable_scope("mrc", reuse=tf.AUTO_REUSE):
+        with tf.variable_scope("coqa", reuse=tf.AUTO_REUSE):
             with tf.variable_scope("start", reuse=tf.AUTO_REUSE):
                 start_result = output_result                                                                                     # [b,l,h]
                 start_result_mask = 1 - p_mask                                                                                     # [b,l]
@@ -1267,43 +1293,6 @@ class XLNetModelBuilder(object):
         
         return loss, predicts
     
-    def combine_coqa_label(self,
-                           pos_label,
-                           seq_len,
-                           unk_label,
-                           yes_label,
-                           no_label):
-        pos_label = self._generate_onehot_label(pos_label, seq_len)                                                        # [b] --> [b,l]
-        
-        other_label = tf.concat([
-            tf.expand_dims(unk_label, axis=-1),                                                                            # [b] --> [b,1]
-            tf.expand_dims(yes_label, axis=-1),                                                                            # [b] --> [b,1]
-            tf.expand_dims(no_label, axis=-1)                                                                              # [b] --> [b,1]
-        ], axis=-1)                                                                                              # [b], [b], [b] --> [b,3]
-        
-        pos_label_mask = 1 - tf.reduce_max(tf.cast(other_label != 0, dtype=tf.float32), axis=-1, keepdims=True)          # [b,3] --> [b,1]
-        pos_label = pos_label * pos_label_mask                                                                    # [b,l], [b,1] --> [b,l]
-        
-        coqa_label = tf.concat([pos_label, other_label], axis=-1)                                               # [b,l], [b,3] --> [b,l+3]
-        coqa_label = tf.argmax(coqa_label, axis=-1)                                                                      # [b,l+3] --> [b]
-        
-        return coqa_label
-    
-    def combine_coqa_result(self,
-                            pos_result,
-                            unk_result,
-                            yes_result,
-                            no_result):
-        other_result = tf.concat([
-            tf.expand_dims(unk_result, axis=-1),                                                                           # [b] --> [b,1]
-            tf.expand_dims(yes_result, axis=-1),                                                                           # [b] --> [b,1]
-            tf.expand_dims(no_result, axis=-1)                                                                             # [b] --> [b,1]
-        ], axis=-1)                                                                                              # [b], [b], [b] --> [b,3]
-        
-        coqa_result = tf.concat([pos_result, other_result], axis=-1)                                            # [b,l], [b,3] --> [b,l+3]
-        
-        return coqa_result
-    
     def get_model_fn(self):
         """Returns `model_fn` closure for TPUEstimator."""
         def model_fn(features,
@@ -1439,9 +1428,10 @@ class XLNetPredictProcessor(object):
                 tf.logging.warning('No feature found for example: {0}'.format(example.qas_id))
                 continue
             
-            example_unk_prob = MAX_FLOAT
-            example_yes_prob = MIN_FLOAT
-            example_no_prob = MIN_FLOAT
+            example_unk_score = MAX_FLOAT
+            example_yes_score = MIN_FLOAT
+            example_no_score = MIN_FLOAT
+            
             example_all_predicts = []
             example_features = qas_id_to_features[example.qas_id]
             for example_feature in example_features:
@@ -1450,9 +1440,9 @@ class XLNetPredictProcessor(object):
                     continue
                 
                 example_result = unique_id_to_result[example_feature.unique_id]
-                example_unk_prob = min(example_unk_prob, float(example_result.unk_prob))
-                example_yes_prob = max(example_yes_prob, float(example_result.yes_prob))
-                example_no_prob = max(example_no_prob, float(example_result.no_prob))
+                example_unk_score = min(example_unk_score, float(example_result.unk_prob))
+                example_yes_score = max(example_yes_score, float(example_result.yes_prob))
+                example_no_score = max(example_no_score, float(example_result.no_prob))
                 
                 for i in range(self.start_n_top):
                     start_prob = example_result.start_prob[i]
@@ -1518,9 +1508,9 @@ class XLNetPredictProcessor(object):
                 "qas_id": example.qas_id,
                 "question_text": example_question_text,
                 "label_text": example.orig_answer_text,
-                "unk_prob": example_unk_prob,
-                "yes_prob": example_yes_prob,
-                "no_prob": example_no_prob,
+                "unk_score": example_unk_score,
+                "yes_score": example_yes_score,
+                "no_score": example_no_score,
                 "predict_text": example_best_predict["predict_text"],
                 "predict_score": example_best_predict["predict_score"]
             })
@@ -1529,9 +1519,9 @@ class XLNetPredictProcessor(object):
                 "qas_id": example.qas_id,
                 "question_text": example_question_text,
                 "label_text": example.orig_answer_text,
-                "unk_prob": example_unk_prob,
-                "yes_prob": example_yes_prob,
-                "no_prob": example_no_prob,
+                "unk_score": example_unk_score,
+                "yes_score": example_yes_score,
+                "no_score": example_no_score,
                 "best_predict": example_best_predict,
                 "top_predicts": example_top_predicts
             })
@@ -1550,7 +1540,8 @@ def main(_):
     task_name = FLAGS.task_name.lower()
     data_pipeline = CoqaPipeline(
         data_dir=FLAGS.data_dir,
-        task_name=task_name)
+        task_name=task_name,
+        num_turn=FLAGS.num_turn)
     
     model_config = xlnet.XLNetConfig(json_path=FLAGS.model_config_path)
     
@@ -1584,20 +1575,6 @@ def main(_):
     if FLAGS.do_train:
         train_examples = data_pipeline.get_train_examples()
         
-        train_example_list = [{
-            "qas_id": train_example.qas_id,
-            "question_text": train_example.question_text,
-            "paragraph_text": train_example.paragraph_text,
-            "raw_answer_text": train_example.raw_answer_text,
-            "orig_answer_text": train_example.orig_answer_text,
-            "start_position": train_example.start_position,
-            "answer_type": train_example.answer_type,
-            "is_skipped": train_example.is_skipped
-        } for train_example in train_examples]
-        
-        with open(r"D:\Git\Dev\stevezheng23\mrc_tf\data\coqa\v1.0\train-v1.0.processed.json", "w") as file:  
-            json.dump(train_example_list, file, indent=4)
-        
         tf.logging.info("***** Run training *****")
         tf.logging.info("  Num examples = %d", len(train_examples))
         tf.logging.info("  Batch size = %d", FLAGS.train_batch_size)
@@ -1614,20 +1591,6 @@ def main(_):
     
     if FLAGS.do_predict:
         predict_examples = data_pipeline.get_dev_examples()
-        
-        predict_example_list = [{
-            "qas_id": predict_example.qas_id,
-            "question_text": predict_example.question_text,
-            "paragraph_text": predict_example.paragraph_text,
-            "raw_answer_text": predict_example.raw_answer_text,
-            "orig_answer_text": predict_example.orig_answer_text,
-            "start_position": predict_example.start_position,
-            "answer_type": predict_example.answer_type,
-            "is_skipped": predict_example.is_skipped
-        } for predict_example in predict_examples]
-        
-        with open(r"D:\Git\Dev\stevezheng23\mrc_tf\data\coqa\v1.0\dev-v1.0.processed.json", "w") as file:  
-            json.dump(predict_example_list, file, indent=4)
         
         tf.logging.info("***** Run prediction *****")
         tf.logging.info("  Num examples = %d", len(predict_examples))
