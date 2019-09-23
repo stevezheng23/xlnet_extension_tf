@@ -385,7 +385,7 @@ class CoqaPipeline(object):
     
     def _normalize_answer(self,
                           answer):
-        norm_answer = normalize_answer(answer)
+        norm_answer = CoQAEvaluator.normalize_answer(answer)
         norm_answer_tokens = norm_answer.split(" ")
         
         if not norm_answer_tokens:
