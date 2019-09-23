@@ -20,26 +20,19 @@ def convert_coqa(input_file,
         id = id_items[0]
         turn_id = int(id_items[1])
         
-        prob_list = [data["unk_prob"], data["yes_prob"], data["no_prob"]]
+        score_list = [data["unk_score"], data["yes_score"], data["no_score"]]
         answer_list = ["unknown", "yes", "no"]
         
-        prob_idx = np.argmax(prob_list)
-        if prob_list[prob_idx] >= answer_threshold:
-            answer = answer_list[prob_idx]
-            if answer == "yes" and "true or false" in data["question_text"].lower():
-                answer = "true"
-            elif answer == "no" and "true or false" in data["question_text"].lower():
-                answer = "false"
+        score_idx = np.argmax(score_list)
+        if score_list[score_idx] >= answer_threshold:
+            answer = answer_list[score_idx]
         else:
             answer = data["predict_text"]
-        
-        score = prob_list[prob_idx]
         
         output_data.append({
             "id": id,
             "turn_id": turn_id,
-            "answer": answer,
-            "score": score
+            "answer": answer
         })
     
     with open(output_file, "w") as file:
