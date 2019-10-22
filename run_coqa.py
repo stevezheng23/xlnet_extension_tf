@@ -311,7 +311,7 @@ class CoqaPipeline(object):
                               is_skipped,
                               num_turn):
         question_tokens = []
-        if answer_type != "unknown" or is_skipped:
+        if answer_type != "unknown" and not is_skipped:
             question_tokens.extend(['<s>'] + question["input_text"].split(' '))
             question_tokens.extend(['</s>'] + answer["input_text"].split(' '))
         
