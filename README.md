@@ -65,7 +65,7 @@ docker run -p 8500:8500 \
 ## Experiment
 ### CoNLL2003-NER
 <p align="center"><img src="/docs/xlnet.ner.png" width=500></p>
-<p align="center"><i>Figure 2: Illustrations of fine-tuning XLNet on NER task</i></p>
+<p align="center"><i>Figure 2: Illustrations of fine-tuning XLNet on CoNLL2003-NER task</i></p>
 
 |    CoNLL2003 - NER  |   Avg. (5-run)   |      Best     |
 |:-------------------:|:----------------:|:-------------:|
@@ -77,7 +77,7 @@ docker run -p 8500:8500 \
 
 ### ATIS-NLU
 <p align="center"><img src="/docs/xlnet.nlu.png" width=500></p>
-<p align="center"><i>Figure 3: Illustrations of fine-tuning XLNet on NLU task</i></p>
+<p align="center"><i>Figure 3: Illustrations of fine-tuning XLNet on ATIS-NLU task</i></p>
 
 |      ATIS - NLU     |   Avg. (5-run)   |      Best     |
 |:-------------------:|:----------------:|:-------------:|
@@ -85,6 +85,50 @@ docker run -p 8500:8500 \
 |    F1 Score - Slot  |   95.48 ± 0.30   |     95.73     |
 
 <p><i>Table 2: The test set performance of XLNet-large finetuned model on ATIS-NLU task with setting: batch size = 16, max length = 128, learning rate = 5e-5, num steps = 2,000</i></p>
+
+### SQuAD v1.1
+<p align="center"><img src="/docs/xlnet.squad.v1.png" width=500></p>
+<p align="center"><i>Figure 4: Illustrations of fine-tuning XLNet on SQuAD v1.1 task</i></p>
+
+|      SQuAD v1.1     |   Avg. (5-run)   |      Best     |
+|:-------------------:|:----------------:|:-------------:|
+|     Exact Match     |   xx.xx ± x.xx   |     xx.xx     |
+|       F1 Score      |   xx.xx ± x.xx   |     xx.xx     |
+
+<p><i>Table 3: The test set performance of XLNet-large finetuned model on SQuAD v1.1 task with setting: batch size = 48, max sequence length = 512, max question length = 64, learning rate = 3e-5, num steps = 8,000</i></p>
+
+### SQuAD v2.0
+<p align="center"><img src="/docs/xlnet.squad.v2.png" width=500></p>
+<p align="center"><i>Figure 5: Illustrations of fine-tuning XLNet on SQuAD v2.0 task</i></p>
+
+|      SQuAD v2.0     |   Avg. (5-run)   |      Best     |
+|:-------------------:|:----------------:|:-------------:|
+|     Exact Match     |   xx.xx ± x.xx   |     xx.xx     |
+|       F1 Score      |   xx.xx ± x.xx   |     xx.xx     |
+
+<p><i>Table 4: The test set performance of XLNet-large finetuned model on SQuAD v2.0 task with setting: batch size = 48, max sequence length = 512, max question length = 64, learning rate = 3e-5, num steps = 8,000</i></p>
+
+### CoQA v1.0
+<p align="center"><img src="/docs/xlnet.coqa.png" width=500></p>
+<p align="center"><i>Figure 6: Illustrations of fine-tuning XLNet on CoQA v1.0 task</i></p>
+
+|       CoQA v1.0     |   Avg. (5-run)   |      Best     |
+|:-------------------:|:----------------:|:-------------:|
+|     Exact Match     |   xx.xx ± x.xx   |     xx.xx     |
+|       F1 Score      |   xx.xx ± x.xx   |     xx.xx     |
+
+<p><i>Table 5: The test set performance of XLNet-large finetuned model on CoQA v1.0 task with setting: batch size = 48, max sequence length = 512, max question length = 128, learning rate = 3e-5, num steps = 8,000</i></p>
+
+### QuAC v0.2
+<p align="center"><img src="/docs/xlnet.quac.png" width=500></p>
+<p align="center"><i>Figure 7: Illustrations of fine-tuning XLNet on QuAC v0.2 task</i></p>
+
+|       QuAC v0.2     |   Avg. (5-run)   |      Best     |
+|:-------------------:|:----------------:|:-------------:|
+|     Exact Match     |   xx.xx ± x.xx   |     xx.xx     |
+|       F1 Score      |   xx.xx ± x.xx   |     xx.xx     |
+
+<p><i>Table 6: The test set performance of XLNet-large finetuned model on QuAC v0.2 task with setting: batch size = 48, max sequence length = 512, max question length = 128, learning rate = 3e-5, num steps = 8,000</i></p>
 
 ## Reference
 * Pranav Rajpurkar, Jian Zhang, Konstantin Lopyrev, and Percy Liang. [SQuAD: 100,000+ questions for machine comprehension of text](https://arxiv.org/abs/1606.05250) [2016]
