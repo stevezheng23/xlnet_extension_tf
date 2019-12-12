@@ -117,7 +117,7 @@ docker run -p 8500:8500 \
 |     Exact Match     |   xx.xx ± x.xx   |     xx.xx     |
 |       F1 Score      |   xx.xx ± x.xx   |     xx.xx     |
 
-<p><i>Table 5: The test set performance of XLNet-large finetuned model on CoQA v1.0 task with setting: batch size = 48, max sequence length = 512, max question length = 128, learning rate = 3e-5, num steps = 8,000</i></p>
+<p><i>Table 5: The test set performance of XLNet-large finetuned model on CoQA v1.0 task with setting: batch size = 48, max sequence length = 512, max question length = 128, learning rate = 3e-5, num steps = 6,000</i></p>
 
 ### QuAC v0.2
 <p align="center"><img src="/docs/xlnet.quac.png" width=500></p>
@@ -125,10 +125,11 @@ docker run -p 8500:8500 \
 
 |       QuAC v0.2     |   Avg. (5-run)   |      Best     |
 |:-------------------:|:----------------:|:-------------:|
-|     Exact Match     |   xx.xx ± x.xx   |     xx.xx     |
 |       F1 Score      |   xx.xx ± x.xx   |     xx.xx     |
+|         HEQQ        |   xx.xx ± x.xx   |     xx.xx     |
+|         HEQD        |   xx.xx ± x.xx   |     xx.xx     |
 
-<p><i>Table 6: The test set performance of XLNet-large finetuned model on QuAC v0.2 task with setting: batch size = 48, max sequence length = 512, max question length = 128, learning rate = 3e-5, num steps = 8,000</i></p>
+<p><i>Table 6: The test set performance of XLNet-large finetuned model on QuAC v0.2 task with setting: batch size = 48, max sequence length = 512, max question length = 128, learning rate = 2e-5, num steps = 8,000</i></p>
 
 ## Reference
 * Pranav Rajpurkar, Jian Zhang, Konstantin Lopyrev, and Percy Liang. [SQuAD: 100,000+ questions for machine comprehension of text](https://arxiv.org/abs/1606.05250) [2016]
