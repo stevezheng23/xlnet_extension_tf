@@ -92,8 +92,8 @@ docker run -p 8500:8500 \
 
 |      SQuAD v1.1     |   Avg. (5-run)   |      Best     |
 |:-------------------:|:----------------:|:-------------:|
-|     Exact Match     |   xx.xx ± x.xx   |     xx.xx     |
-|       F1 Score      |   xx.xx ± x.xx   |     xx.xx     |
+|     Exact Match     |   xx.xx ± x.xx   |     88.61     |
+|       F1 Score      |   xx.xx ± x.xx   |     94.28     |
 
 <p><i>Table 3: The test set performance of XLNet-large finetuned model on SQuAD v1.1 task with setting: batch size = 48, max sequence length = 512, max question length = 64, learning rate = 3e-5, num steps = 8,000</i></p>
 
@@ -103,8 +103,8 @@ docker run -p 8500:8500 \
 
 |      SQuAD v2.0     |   Avg. (5-run)   |      Best     |
 |:-------------------:|:----------------:|:-------------:|
-|     Exact Match     |   xx.xx ± x.xx   |     xx.xx     |
-|       F1 Score      |   xx.xx ± x.xx   |     xx.xx     |
+|     Exact Match     |   xx.xx ± x.xx   |     85.72     |
+|       F1 Score      |   xx.xx ± x.xx   |     88.36     |
 
 <p><i>Table 4: The test set performance of XLNet-large finetuned model on SQuAD v2.0 task with setting: batch size = 48, max sequence length = 512, max question length = 64, learning rate = 3e-5, num steps = 8,000</i></p>
 
