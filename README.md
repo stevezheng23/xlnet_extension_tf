@@ -114,8 +114,8 @@ docker run -p 8500:8500 \
 
 |       CoQA v1.0     |   Avg. (5-run)   |      Best     |
 |:-------------------:|:----------------:|:-------------:|
-|     Exact Match     |   xx.xx ± x.xx   |     xx.xx     |
-|       F1 Score      |   xx.xx ± x.xx   |     xx.xx     |
+|     Exact Match     |   xx.xx ± x.xx   |      81.8     |
+|       F1 Score      |   xx.xx ± x.xx   |      89.4     |
 
 <p><i>Table 5: The test set performance of XLNet-large finetuned model on CoQA v1.0 task with setting: batch size = 48, max sequence length = 512, max question length = 128, learning rate = 3e-5, num steps = 6,000</i></p>
 
@@ -125,9 +125,9 @@ docker run -p 8500:8500 \
 
 |       QuAC v0.2     |   Avg. (5-run)   |      Best     |
 |:-------------------:|:----------------:|:-------------:|
-|       F1 Score      |   xx.xx ± x.xx   |     xx.xx     |
-|         HEQQ        |   xx.xx ± x.xx   |     xx.xx     |
-|         HEQD        |   xx.xx ± x.xx   |     xx.xx     |
+|       F1 Score      |   xx.xx ± x.xx   |      71.5     |
+|         HEQQ        |   xx.xx ± x.xx   |      68.0     |
+|         HEQD        |   xx.xx ± x.xx   |      11.1     |
 
 <p><i>Table 6: The test set performance of XLNet-large finetuned model on QuAC v0.2 task with setting: batch size = 48, max sequence length = 512, max question length = 128, learning rate = 2e-5, num steps = 8,000</i></p>
 
