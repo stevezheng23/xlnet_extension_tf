@@ -1,4 +1,8 @@
 # XLNet Extension
+**\*\*\*\*\* Top 3 single model on [CoQA](https://stanfordnlp.github.io/coqa/) leaderboard \*\*\*\*\***
+
+**\*\*\*\*\* Top 5 single model on [QuAC](https://quac.ai/) leaderboard \*\*\*\*\***
+
 [XLNet](https://github.com/zihangdai/xlnet) is a generalized autoregressive pretraining method proposed by CMU & Google Brain, which outperforms BERT on 20 NLP tasks ranging from question answering, natural language inference, sentiment analysis, and document ranking. XLNet is inspired by the pros and cons of auto-regressive and auto-encoding methods to overcome limitation of both sides, which uses a permutation language modeling objective to learn bidirectional context and integrates ideas from Transformer-XL into model architecture. This project is aiming to provide extensions built on top of current XLNet and bring power of XLNet to other NLP tasks like NER and NLU.
 <p align="center"><img src="/docs/xlnet.tasks.png" width=800></p>
 <p align="center"><i>Figure 1: Illustrations of fine-tuning XLNet on different tasks</i></p>
